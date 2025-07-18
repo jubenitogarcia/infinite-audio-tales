@@ -1,14 +1,35 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
+import { Dashboard } from "@/components/Dashboard";
+
+interface UserPreferences {
+  artists: string[];
+  genres: string[];
+  preferences: {
+    duration: string;
+    intensity: string;
+    format: string;
+  };
+}
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
+  const [isOnboardingComplete, setIsOnboardingComplete] = useState(false);
+
+  const handleOnboardingComplete = (data: UserPreferences) => {
+    setUserPreferences(data);
+    setIsOnboardingComplete(true);
+  };
+
+  if (!isOnboardingComplete || !userPreferences) {
+    return (
+      <div className="min-h-screen bg-background">
+        <OnboardingWizard onComplete={handleOnboardingComplete} />
       </div>
-    </div>
-  );
+    );
+  }
+
+  return <Dashboard userPreferences={userPreferences} />;
 };
 
 export default Index;

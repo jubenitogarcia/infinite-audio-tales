@@ -1,0 +1,256 @@
+import { useState } from "react";
+import { PodcastCard } from "./PodcastCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Waveform } from "@/components/ui/waveform";
+import { 
+  Play, 
+  Pause, 
+  SkipForward, 
+  SkipBack, 
+  Volume2, 
+  Search,
+  Settings,
+  Sparkles,
+  Shuffle,
+  RefreshCw
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface DashboardProps {
+  userPreferences: {
+    artists: string[];
+    genres: string[];
+    preferences: {
+      duration: string;
+      intensity: string;
+      format: string;
+    };
+  };
+}
+
+// Mock data for demonstration
+const MOCK_PODCASTS = [
+  {
+    id: '1',
+    title: 'O Mistério da Torre Perdida',
+    genre: 'Mistério',
+    description: 'Uma investigação sobrenatural em uma torre medieval abandonada, onde ecos do passado revelam segredos sombrios.',
+    duration: '23 min',
+    isPlaying: true,
+    popularity: 85,
+  },
+  {
+    id: '2',
+    title: 'Crônicas de Neotóquio',
+    genre: 'Ficção Científica',
+    description: 'No ano 2087, hackers cibernéticos descobrem uma conspiração que pode mudar o destino da humanidade.',
+    duration: '31 min',
+    isGenerating: true,
+    popularity: 92,
+  },
+  {
+    id: '3',
+    title: 'Segredos da Corte Real',
+    genre: 'Drama Histórico',
+    description: 'Intrigas políticas e romances proibidos na corte de Versailles durante o reinado de Luís XIV.',
+    duration: '18 min',
+    popularity: 76,
+  },
+  {
+    id: '4',
+    title: 'A Lenda do Pirata Fantasma',
+    genre: 'Aventura',
+    description: 'Navegadores modernos encontram um navio pirata do século XVIII que ainda vaga pelos mares.',
+    duration: '27 min',
+    popularity: 68,
+  },
+];
+
+export function Dashboard({ userPreferences }: DashboardProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentlyPlaying, setCurrentlyPlaying] = useState('1');
+  const [isGlobalPlaying, setIsGlobalPlaying] = useState(true);
+
+  const handlePlay = (podcastId: string) => {
+    if (currentlyPlaying === podcastId) {
+      setIsGlobalPlaying(!isGlobalPlaying);
+    } else {
+      setCurrentlyPlaying(podcastId);
+      setIsGlobalPlaying(true);
+    }
+  };
+
+  const filteredPodcasts = MOCK_PODCASTS.filter(podcast =>
+    podcast.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    podcast.genre.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur sticky top-0 z-40">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Waveform className="text-primary" bars={3} />
+                <h1 className="text-2xl font-bold gradient-hero bg-clip-text text-transparent">
+                  Podcaster
+                </h1>
+              </div>
+              <Badge variant="secondary" className="gradient-primary">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Infinito
+              </Badge>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar podcasts..."
+                  className="pl-10 w-64"
+                />
+              </div>
+              <Button variant="outline" size="sm">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-2">
+            Bem-vindo de volta! 🎧
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            Seus podcasts personalizados estão sendo gerados com base em suas preferências
+          </p>
+          
+          <div className="flex flex-wrap gap-2 mb-6">
+            <span className="text-sm text-muted-foreground">Seus interesses:</span>
+            {userPreferences.genres.slice(0, 5).map((genre) => (
+              <Badge key={genre} variant="outline" className="text-xs">
+                {genre}
+              </Badge>
+            ))}
+            {userPreferences.genres.length > 5 && (
+              <Badge variant="outline" className="text-xs">
+                +{userPreferences.genres.length - 5} mais
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex gap-4">
+            <Button className="gradient-primary">
+              <Shuffle className="w-4 h-4 mr-2" />
+              Gerar Novo Episódio
+            </Button>
+            <Button variant="outline">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Atualizar Fila
+            </Button>
+          </div>
+        </div>
+
+        {/* Podcasts Grid */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold">Seus Podcasts Personalizados</h3>
+            <span className="text-sm text-muted-foreground">
+              {filteredPodcasts.length} episódios disponíveis
+            </span>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
+            {filteredPodcasts.map((podcast) => (
+              <PodcastCard
+                key={podcast.id}
+                title={podcast.title}
+                genre={podcast.genre}
+                description={podcast.description}
+                duration={podcast.duration}
+                isPlaying={currentlyPlaying === podcast.id && isGlobalPlaying}
+                isGenerating={podcast.isGenerating}
+                popularity={podcast.popularity}
+                onPlay={() => handlePlay(podcast.id)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Empty State */}
+        {filteredPodcasts.length === 0 && (
+          <div className="text-center py-12">
+            <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Nenhum podcast encontrado</h3>
+            <p className="text-muted-foreground mb-4">
+              Tente ajustar sua busca ou gerar novos episódios
+            </p>
+            <Button className="gradient-primary">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Gerar Novos Episódios
+            </Button>
+          </div>
+        )}
+      </main>
+
+      {/* Global Player */}
+      {currentlyPlaying && (
+        <div className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur border-t border-border/50 p-4 z-50">
+          <div className="container mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 gradient-card rounded-lg flex items-center justify-center">
+                <Waveform bars={4} animated={isGlobalPlaying} />
+              </div>
+              <div>
+                <h4 className="font-medium text-sm">
+                  {MOCK_PODCASTS.find(p => p.id === currentlyPlaying)?.title}
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {MOCK_PODCASTS.find(p => p.id === currentlyPlaying)?.genre}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <Button variant="ghost" size="sm">
+                <SkipBack className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsGlobalPlaying(!isGlobalPlaying)}
+                className="w-10 h-10 rounded-full gradient-primary"
+              >
+                {isGlobalPlaying ? (
+                  <Pause className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4 ml-0.5" />
+                )}
+              </Button>
+              <Button variant="ghost" size="sm">
+                <SkipForward className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Volume2 className="w-4 h-4 text-muted-foreground" />
+              <div className="w-20 h-1 bg-muted rounded-full">
+                <div className="w-3/5 h-full bg-primary rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
