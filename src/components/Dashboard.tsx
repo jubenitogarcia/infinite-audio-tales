@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Waveform } from "@/components/ui/waveform";
-import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useRealTimeAudioPlayer, PodcastData } from "@/hooks/useAudioPlayer";
 import { 
   Play, 
   Pause, 
@@ -79,11 +79,11 @@ export function Dashboard({ userPreferences }: DashboardProps) {
   
   const { 
     playerState, 
-    playDemo, 
+    startPodcastGeneration, 
     pause, 
     resume, 
     setVolume 
-  } = useAudioPlayer();
+  } = useRealTimeAudioPlayer();
 
   const handlePlay = async (podcastId: string) => {
     if (currentlyPlaying === podcastId) {
@@ -94,14 +94,24 @@ export function Dashboard({ userPreferences }: DashboardProps) {
         resume();
       }
     } else {
-      // Start playing a new podcast
+      // Start generating and playing a new podcast
       setCurrentlyPlaying(podcastId);
-      try {
-        // For demo purposes, generate demo audio
-        // In real implementation, this would fetch the actual podcast audio
-        await playDemo();
-      } catch (error) {
-        console.error('Erro ao reproduzir podcast:', error);
+      
+      const podcast = MOCK_PODCASTS.find(p => p.id === podcastId);
+      if (podcast) {
+        try {
+          const podcastData: PodcastData = {
+            title: podcast.title,
+            description: podcast.description,
+            preferences: userPreferences.preferences,
+            genres: userPreferences.genres,
+            artists: userPreferences.artists
+          };
+          
+          await startPodcastGeneration(podcastData);
+        } catch (error) {
+          console.error('Erro ao gerar podcast:', error);
+        }
       }
     }
   };
