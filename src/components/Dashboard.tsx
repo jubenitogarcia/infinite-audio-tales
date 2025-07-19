@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PodcastCard } from "./PodcastCard";
 import { AudioMixer } from "./AudioMixer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Waveform } from "@/components/ui/waveform";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { 
   Play, 
   Pause, 
@@ -72,17 +73,36 @@ const MOCK_PODCASTS = [
 
 export function Dashboard({ userPreferences }: DashboardProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentlyPlaying, setCurrentlyPlaying] = useState('1');
-  const [isGlobalPlaying, setIsGlobalPlaying] = useState(true);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [showMixer, setShowMixer] = useState(false);
   const [selectedPodcast, setSelectedPodcast] = useState<any>(null);
+  
+  const { 
+    playerState, 
+    playDemo, 
+    pause, 
+    resume, 
+    setVolume 
+  } = useAudioPlayer();
 
-  const handlePlay = (podcastId: string) => {
+  const handlePlay = async (podcastId: string) => {
     if (currentlyPlaying === podcastId) {
-      setIsGlobalPlaying(!isGlobalPlaying);
+      // Toggle play/pause for current podcast
+      if (playerState.isPlaying) {
+        pause();
+      } else {
+        resume();
+      }
     } else {
+      // Start playing a new podcast
       setCurrentlyPlaying(podcastId);
-      setIsGlobalPlaying(true);
+      try {
+        // For demo purposes, generate demo audio
+        // In real implementation, this would fetch the actual podcast audio
+        await playDemo();
+      } catch (error) {
+        console.error('Erro ao reproduzir podcast:', error);
+      }
     }
   };
 
@@ -90,6 +110,13 @@ export function Dashboard({ userPreferences }: DashboardProps) {
     setSelectedPodcast(podcast);
     setShowMixer(true);
   };
+
+  // Update volume when player state changes
+  useEffect(() => {
+    if (playerState.volume !== undefined) {
+      // Update UI volume slider if needed
+    }
+  }, [playerState]);
 
   const filteredPodcasts = MOCK_PODCASTS.filter(podcast =>
     podcast.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -216,7 +243,7 @@ export function Dashboard({ userPreferences }: DashboardProps) {
                     genre={podcast.genre}
                     description={podcast.description}
                     duration={podcast.duration}
-                    isPlaying={currentlyPlaying === podcast.id && isGlobalPlaying}
+                    isPlaying={currentlyPlaying === podcast.id && playerState.isPlaying}
                     isGenerating={podcast.isGenerating}
                     popularity={podcast.popularity}
                     onPlay={() => handlePlay(podcast.id)}
@@ -238,7 +265,7 @@ export function Dashboard({ userPreferences }: DashboardProps) {
         )}
 
         {/* Empty State */}
-        {filteredPodcasts.length === 0 && (
+        {!showMixer && filteredPodcasts.length === 0 && (
           <div className="text-center py-12">
             <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nenhum podcast encontrado</h3>
@@ -259,7 +286,7 @@ export function Dashboard({ userPreferences }: DashboardProps) {
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 gradient-card rounded-lg flex items-center justify-center">
-                <Waveform bars={4} animated={isGlobalPlaying} />
+                <Waveform bars={4} animated={playerState.isPlaying} />
               </div>
               <div>
                 <h4 className="font-medium text-sm">
@@ -268,6 +295,11 @@ export function Dashboard({ userPreferences }: DashboardProps) {
                 <p className="text-xs text-muted-foreground">
                   {MOCK_PODCASTS.find(p => p.id === currentlyPlaying)?.genre}
                 </p>
+                {playerState.duration > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {Math.floor(playerState.currentTime)}s / {Math.floor(playerState.duration)}s
+                  </p>
+                )}
               </div>
             </div>
 
@@ -278,10 +310,10 @@ export function Dashboard({ userPreferences }: DashboardProps) {
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => setIsGlobalPlaying(!isGlobalPlaying)}
+                onClick={() => handlePlay(currentlyPlaying)}
                 className="w-10 h-10 rounded-full gradient-primary"
               >
-                {isGlobalPlaying ? (
+                {playerState.isPlaying ? (
                   <Pause className="w-4 h-4" />
                 ) : (
                   <Play className="w-4 h-4 ml-0.5" />
@@ -294,8 +326,17 @@ export function Dashboard({ userPreferences }: DashboardProps) {
 
             <div className="flex items-center space-x-2">
               <Volume2 className="w-4 h-4 text-muted-foreground" />
-              <div className="w-20 h-1 bg-muted rounded-full">
-                <div className="w-3/5 h-full bg-primary rounded-full" />
+              <div className="w-20 h-1 bg-muted rounded-full cursor-pointer"
+                   onClick={(e) => {
+                     const rect = e.currentTarget.getBoundingClientRect();
+                     const x = e.clientX - rect.left;
+                     const volume = x / rect.width;
+                     setVolume(volume);
+                   }}>
+                <div 
+                  className="h-full bg-primary rounded-full" 
+                  style={{ width: `${playerState.volume * 100}%` }}
+                />
               </div>
             </div>
           </div>
