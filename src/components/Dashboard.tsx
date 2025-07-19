@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PodcastCard } from "./PodcastCard";
+import { AudioMixer } from "./AudioMixer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,8 @@ import {
   Settings,
   Sparkles,
   Shuffle,
-  RefreshCw
+  RefreshCw,
+  Layers3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +74,8 @@ export function Dashboard({ userPreferences }: DashboardProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentlyPlaying, setCurrentlyPlaying] = useState('1');
   const [isGlobalPlaying, setIsGlobalPlaying] = useState(true);
+  const [showMixer, setShowMixer] = useState(false);
+  const [selectedPodcast, setSelectedPodcast] = useState<any>(null);
 
   const handlePlay = (podcastId: string) => {
     if (currentlyPlaying === podcastId) {
@@ -80,6 +84,11 @@ export function Dashboard({ userPreferences }: DashboardProps) {
       setCurrentlyPlaying(podcastId);
       setIsGlobalPlaying(true);
     }
+  };
+
+  const handleOpenMixer = (podcast: any) => {
+    setSelectedPodcast(podcast);
+    setShowMixer(true);
   };
 
   const filteredPodcasts = MOCK_PODCASTS.filter(podcast =>
@@ -150,6 +159,16 @@ export function Dashboard({ userPreferences }: DashboardProps) {
           </div>
 
           <div className="flex gap-4">
+            <Button 
+              className="gradient-primary"
+              onClick={() => handleOpenMixer({
+                title: 'Novo Episódio Personalizado',
+                description: 'Episódio baseado em suas preferências musicais e de conteúdo'
+              })}
+            >
+              <Layers3 className="w-4 h-4 mr-2" />
+              Abrir Estúdio
+            </Button>
             <Button className="gradient-primary">
               <Shuffle className="w-4 h-4 mr-2" />
               Gerar Novo Episódio
@@ -161,31 +180,62 @@ export function Dashboard({ userPreferences }: DashboardProps) {
           </div>
         </div>
 
-        {/* Podcasts Grid */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold">Seus Podcasts Personalizados</h3>
-            <span className="text-sm text-muted-foreground">
-              {filteredPodcasts.length} episódios disponíveis
-            </span>
+        {/* Audio Mixer or Podcasts Grid */}
+        {showMixer && selectedPodcast ? (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Estúdio de Criação</h3>
+              <Button 
+                variant="outline"
+                onClick={() => setShowMixer(false)}
+              >
+                Voltar aos Podcasts
+              </Button>
+            </div>
+            
+            <AudioMixer
+              podcastTitle={selectedPodcast.title}
+              description={selectedPodcast.description}
+              userPreferences={userPreferences}
+            />
           </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold">Seus Podcasts Personalizados</h3>
+              <span className="text-sm text-muted-foreground">
+                {filteredPodcasts.length} episódios disponíveis
+              </span>
+            </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
-            {filteredPodcasts.map((podcast) => (
-              <PodcastCard
-                key={podcast.id}
-                title={podcast.title}
-                genre={podcast.genre}
-                description={podcast.description}
-                duration={podcast.duration}
-                isPlaying={currentlyPlaying === podcast.id && isGlobalPlaying}
-                isGenerating={podcast.isGenerating}
-                popularity={podcast.popularity}
-                onPlay={() => handlePlay(podcast.id)}
-              />
-            ))}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-1">
+              {filteredPodcasts.map((podcast) => (
+                <div key={podcast.id} className="space-y-2">
+                  <PodcastCard
+                    title={podcast.title}
+                    genre={podcast.genre}
+                    description={podcast.description}
+                    duration={podcast.duration}
+                    isPlaying={currentlyPlaying === podcast.id && isGlobalPlaying}
+                    isGenerating={podcast.isGenerating}
+                    popularity={podcast.popularity}
+                    onPlay={() => handlePlay(podcast.id)}
+                  />
+                  <div className="flex justify-end">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleOpenMixer(podcast)}
+                    >
+                      <Layers3 className="w-4 h-4 mr-2" />
+                      Abrir no Estúdio
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Empty State */}
         {filteredPodcasts.length === 0 && (
