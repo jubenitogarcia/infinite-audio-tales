@@ -34,8 +34,8 @@ serve(async (req) => {
       const data = JSON.parse(event.data);
       console.log("Received message:", data);
 
-      if (data.type === "generate_podcast") {
-        await generateAndStreamPodcast(socket, data);
+      if (data.type === "start_stream") {
+        await startInfiniteStream(socket, data);
       } else if (data.type === "stop_stream") {
         if (currentStream) {
           currentStream.cancel();
@@ -52,118 +52,125 @@ serve(async (req) => {
     }
   };
 
-  async function generateAndStreamPodcast(socket: WebSocket, data: any) {
-    const { title, description, preferences, genres, artists } = data;
+  async function startInfiniteStream(socket: WebSocket, data: any) {
+    const { preferences, genres, artists } = data;
+    let isStreaming = true;
+    let segmentCounter = 0;
     
     try {
-      // Step 1: Generate podcast script using Gemini
       socket.send(JSON.stringify({ 
-        type: "status", 
-        message: "Gerando roteiro com IA..." 
+        type: "stream_started", 
+        message: "Iniciando streaming ao vivo..." 
       }));
 
-      const scriptResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GOOGLE_AI_API_KEY}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Crie um roteiro detalhado para um podcast de ${preferences.duration} minutos sobre "${title}".
-              
-              Descrição: ${description}
-              Gêneros musicais: ${genres.join(', ')}
-              Artistas de referência: ${artists.slice(0, 5).join(', ')}
-              Intensidade: ${preferences.intensity}
-              
-              O roteiro deve incluir:
-              1. [NARRAÇÃO] Introdução cativante (30 segundos)
-              2. [NARRAÇÃO] Desenvolvimento principal com 5 segmentos de 2-3 minutos cada
-              3. [MÚSICA] Indicações de música de fundo apropriada para cada momento
-              4. [EFEITOS] Momentos específicos para efeitos sonoros
-              5. [NARRAÇÃO] Conclusão impactante (30 segundos)
-              
-              Formate EXATAMENTE assim:
-              [NARRAÇÃO|00:00-00:30] Texto da introdução...
-              [MÚSICA|00:00-10:00] Estilo: ambiente suave, inspirado em ${genres[0]}
-              [EFEITOS|00:15-00:17] Som de páginas virando
-              [NARRAÇÃO|00:30-03:00] Primeiro segmento...
-              
-              Continue este padrão para todo o episódio.`
-            }]
-          }]
-        })
-      });
-
-      if (!scriptResponse.ok) {
-        throw new Error('Falha na geração do roteiro');
-      }
-
-      const scriptData = await scriptResponse.json();
-      const script = scriptData.candidates[0].content.parts[0].text;
-      
-      console.log("Script gerado:", script);
-      
-      // Parse script segments
-      const segments = parseScript(script);
-      
-      socket.send(JSON.stringify({ 
-        type: "script_ready", 
-        segments: segments.length,
-        message: "Roteiro criado! Iniciando geração de áudio..." 
-      }));
-
-      // Step 2: Generate and stream audio for each segment
-      for (let i = 0; i < segments.length; i++) {
-        const segment = segments[i];
+      while (isStreaming && socket.readyState === WebSocket.OPEN) {
+        segmentCounter++;
+        
+        // Gerar contexto dinâmico baseado nos gostos musicais
+        const topics = await generateContextualTopic(genres, artists, preferences);
         
         socket.send(JSON.stringify({ 
-          type: "generating_segment", 
-          current: i + 1,
-          total: segments.length,
-          segmentType: segment.type,
-          message: `Gerando ${segment.type} ${i + 1}/${segments.length}...` 
+          type: "generating_content", 
+          segment: segmentCounter,
+          message: "Criando conteúdo ao vivo..." 
         }));
 
+        // Decidir tipo de segmento baseado no fluxo natural
+        const segmentType = decideSegmentType(segmentCounter);
+        
         try {
-          const audioData = await generateAudioSegment(segment);
+          const audioData = await generateLiveSegment(segmentType, topics, genres, artists);
           
-          if (audioData) {
+          if (audioData && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ 
               type: "audio_segment", 
-              segmentId: segment.id,
-              segmentType: segment.type,
-              startTime: segment.startTime,
-              duration: segment.duration,
+              segmentId: `live_${segmentCounter}`,
+              segmentType: segmentType,
               audioData: audioData,
-              message: `Reproduzindo ${segment.type}...`
+              message: `Ao vivo: ${segmentType}...`
             }));
-
-            // Small delay to prevent overwhelming the client
-            await new Promise(resolve => setTimeout(resolve, 100));
           }
+          
+          // Pausa dinâmica entre segmentos
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
         } catch (error) {
-          console.error(`Error generating segment ${i}:`, error);
-          socket.send(JSON.stringify({ 
-            type: "segment_error", 
-            segmentId: segment.id,
-            error: error.message 
-          }));
+          console.error(`Error generating live segment ${segmentCounter}:`, error);
+          // Continue streaming mesmo com erro
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
-      socket.send(JSON.stringify({ 
-        type: "generation_complete", 
-        message: "Podcast gerado com sucesso!" 
-      }));
-
     } catch (error) {
-      console.error("Error generating podcast:", error);
+      console.error("Error in infinite stream:", error);
       socket.send(JSON.stringify({ 
         type: "error", 
         message: error.message 
       }));
+    }
+  }
+
+  async function generateContextualTopic(genres: string[], artists: string[], preferences: any): Promise<string> {
+    const topicResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GOOGLE_AI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `Crie um tópico interessante para um podcast musical ao vivo.
+            
+            Gêneros preferidos: ${genres.join(', ')}
+            Artistas de referência: ${artists.slice(0, 3).join(', ')}
+            Intensidade: ${preferences.intensity}
+            
+            O tópico deve ser:
+            - Relacionado à música e cultura
+            - Envolvente e conversacional
+            - Adequado para o estilo ${preferences.intensity}
+            - Entre 1-2 frases
+            
+            Responda apenas com o tópico, sem formatação extra.`
+          }]
+        }]
+      })
+    });
+
+    if (!topicResponse.ok) {
+      return `Vamos falar sobre ${genres[0]} e a influência de ${artists[0]} na música atual.`;
+    }
+
+    const topicData = await topicResponse.json();
+    return topicData.candidates[0].content.parts[0].text.trim();
+  }
+
+  function decideSegmentType(segmentNumber: number): string {
+    const cycle = segmentNumber % 6;
+    switch (cycle) {
+      case 1: return 'narração';
+      case 2: return 'música';
+      case 3: return 'narração';
+      case 4: return 'efeitos';
+      case 5: return 'narração';
+      case 0: return 'música';
+      default: return 'narração';
+    }
+  }
+
+  async function generateLiveSegment(type: string, topic: string, genres: string[], artists: string[]): Promise<string | null> {
+    try {
+      if (type === 'narração') {
+        return await generateSpeech(`${topic} Vamos explorar como ${artists[0]} influenciou o ${genres[0]}.`);
+      } else if (type === 'música') {
+        return await generateMusic(`Música ambiente ${genres[0]} inspirada em ${artists[0]}`);
+      } else if (type === 'efeitos') {
+        return await generateSoundEffect('Transição musical suave');
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error generating live ${type}:`, error);
+      return null;
     }
   }
 

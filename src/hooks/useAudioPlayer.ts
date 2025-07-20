@@ -166,14 +166,16 @@ export class RealTimeAudioStreamer {
     this.notifyStateChange();
   }
 
-  async startGeneration(podcastData: PodcastData) {
+  async startStream(userPreferences: any) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket não conectado');
     }
 
     this.ws.send(JSON.stringify({
-      type: 'generate_podcast',
-      ...podcastData
+      type: 'start_stream',
+      preferences: userPreferences.preferences,
+      genres: userPreferences.genres,
+      artists: userPreferences.artists
     }));
   }
 
@@ -265,12 +267,12 @@ export function useRealTimeAudioPlayer() {
     return streamerRef.current;
   }, []);
 
-  const startPodcastGeneration = useCallback(async (podcastData: PodcastData) => {
+  const startInfiniteStream = useCallback(async (userPreferences: any) => {
     try {
       const streamer = await initializeStreamer();
-      await streamer.startGeneration(podcastData);
+      await streamer.startStream(userPreferences);
     } catch (error) {
-      console.error('Erro ao iniciar geração:', error);
+      console.error('Erro ao iniciar streaming:', error);
       throw error;
     }
   }, [initializeStreamer]);
@@ -305,7 +307,7 @@ export function useRealTimeAudioPlayer() {
 
   return {
     playerState,
-    startPodcastGeneration,
+    startInfiniteStream,
     pause,
     resume,
     stop,

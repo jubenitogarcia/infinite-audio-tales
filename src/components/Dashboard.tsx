@@ -79,7 +79,7 @@ export function Dashboard({ userPreferences }: DashboardProps) {
   
   const { 
     playerState, 
-    startPodcastGeneration, 
+    startInfiniteStream, 
     pause, 
     resume, 
     setVolume 
@@ -97,21 +97,10 @@ export function Dashboard({ userPreferences }: DashboardProps) {
       // Start generating and playing a new podcast
       setCurrentlyPlaying(podcastId);
       
-      const podcast = MOCK_PODCASTS.find(p => p.id === podcastId);
-      if (podcast) {
-        try {
-          const podcastData: PodcastData = {
-            title: podcast.title,
-            description: podcast.description,
-            preferences: userPreferences.preferences,
-            genres: userPreferences.genres,
-            artists: userPreferences.artists
-          };
-          
-          await startPodcastGeneration(podcastData);
-        } catch (error) {
-          console.error('Erro ao gerar podcast:', error);
-        }
+      try {
+        await startInfiniteStream(userPreferences);
+      } catch (error) {
+        console.error('Erro ao iniciar streaming:', error);
       }
     }
   };
