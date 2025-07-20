@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowRight, ArrowLeft, Sparkles, CheckCircle } from "lucide-react";
-import { ArtistSelector } from "./ArtistSelector";
+import { BubbleArtistSelector } from "./BubbleArtistSelector";
 import { GenreSelector } from "./GenreSelector";
 import { cn } from "@/lib/utils";
 
@@ -162,7 +162,7 @@ export function OnboardingWizard({ onComplete, className }: OnboardingWizardProp
         </div>
 
         {currentStep === 0 && (
-          <ArtistSelector
+          <BubbleArtistSelector
             selectedArtists={data.artists}
             onArtistToggle={(artist) => {
               const newArtists = data.artists.includes(artist)
